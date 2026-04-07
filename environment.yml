@@ -1,0 +1,9 @@
+name: radar_nowcasting
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.11
+  - pysteps
+  - matplotlib
+  - numpy
