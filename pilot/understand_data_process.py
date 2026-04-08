@@ -1,55 +1,52 @@
 import matplotlib.pyplot as plt
+import matplotlib.animation as animation
 import numpy as np
 import requests
 import itertools
 import bisect
+import os
 
-from pilot.helper import parse_gregorian_day, parse_utc_time, download_mch_hdf5
+
+from pilot.helper import parse_gregorian_day, parse_utc_time, download_mch_hdf5, is_timepoint
 
 from pysteps import rcparams, io
 import datetime as dt
 from pysteps.utils import conversion, dimension, transformation
-from pysteps.visualization import plot_precip_field
+from pysteps.visualization import plot_precip_field, animations
 
-
-date = dt.datetime.strptime("202604051202", "%Y%m%d%H%M")
-
-## https://data.geo.admin.ch/ch.meteoschweiz.ogd-radar-precip/ für REST API später 
-# https://data.geo.admin.ch/api/stac/v1/collections/ch.meteoschweiz.ogd-radar-precip api
-
+date = dt.datetime.strptime("202604051955", "%Y%m%d%H%M")
 BASEURL = "https://data.geo.admin.ch/ch.meteoschweiz.ogd-radar-precip"
-window = 7
-date_url = date.__format__("%Y%m%d") + '-ch'
-# how to get gregorian day of year
-gregorian_day = parse_gregorian_day(date)
+window = 36 # 7*5mim=35 min windows
+# otherwise pull whole day
 
-utc_combs = [ ["0"+str(x) if len(str(x)) == 1 else str(x), "0"+str(y) if len(str(y)) == 1 else str(y)] for x in range(24) for y in range(0,60,5)]
-utc_combs = ["".join(pair) for pair in utc_combs]
-# wie bekomme ich utc comb idx
+download_mch_hdf5('rzc', BASEURL, date, window= window)
 
-day_time_utc = parse_utc_time(date)
-utc_idx = bisect.bisect_right(utc_combs, day_time_utc)-1
-product = 'rzc'
-test_url = ["/".join([BASEURL, date_url, product + str(date.year)[-2:] + gregorian_day + utc_combs[idx]+"vl.001.h5"]) for idx in range(utc_idx, utc_idx+window)]
-
+data_source = rcparams.data_sources["mch"]
+root_path = 'pilot/data/'
+path_fmt = data_source['path_fmt']
+fn_pattern = 'rzc%y%j%H%Mvl.001'
+fn_ext = 'h5'
+importer_name = 'mch_hdf5'
+timestep = data_source["timestep"]
 
 
-test = io.import_mch_hdf5('pilot/data.h5', 'RATE')
-R = test[0]
-metadata = test[2]
-R
-R, metadata = conversion.to_raindepth(R, metadata)
+date_search = dt.datetime.strptime("202604052015", "%Y%m%d%H%M")
+# Find the frame in the archive for the specified date
+fns = io.find_by_date(
+    date_search, root_path, path_fmt, fn_pattern, fn_ext, timestep, num_prev_files=1, num_next_files=20)
 
-# Upscale data to 2 km to limit memory usage
-R, metadata = dimension.aggregate_fields_space(R, metadata, 2000)
+importer_kwargs = rcparams.data_sources['mch']["importer_kwargs"]
+importer_kwargs.update({'product': 'rzc'})
+# Read the data from the archive
+importer = io.get_method(importer_name, "importer")
+R, _, metadata = io.read_timeseries(fns, importer, **importer_kwargs)
 
-# Plot the rainfall field
-plot_precip_field(R[ :, :], geodata=metadata)
-plt.show()
+# data validation
+temp = np.lib.stride_tricks.sliding_window_view(metadata['timestamps'], 2)
+np.all(np.diff(temp) == dt.timedelta(seconds = 300))
 
-# Log-transform the data to unit of dBR, set the threshold to 0.1 mm/h,
-# set the fill value to -15 dBR
-R, metadata = transformation.dB_transform(R, metadata, threshold=0.1, zerovalue=-15.0)
+R.shape
+R[-1,:,:]
+plot_precip_field(R[-1,:,:], geodata=metadata)
 
-# Set missing values with the fill value
-R[~np.isfinite(R)] = -15.0
+animations.animate(R)
