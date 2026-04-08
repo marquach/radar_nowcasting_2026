@@ -45,9 +45,14 @@ def download_mch_hdf5(product: str, baseurl: str, date: dt.datetime, window: int
     date_str    = date.strftime("%Y%m%d")
     date_url    = date_str + "-ch"
     gregorian_day = parse_gregorian_day(date)
-    day_time_utc  = parse_utc_time(date)
-
-    utc_idx = max(0, bisect.bisect_right(UTC_COMBS, day_time_utc) - 1)
+    
+    if is_timepoint(date):
+        day_time_utc = parse_utc_time(date)
+        utc_idx      = max(0, bisect.bisect_right(UTC_COMBS, day_time_utc) - 1)
+    else:
+        # No time component → download all time steps for the day
+        utc_idx = 0
+        window  = len(UTC_COMBS)  # 288 steps (24h × 12 per hour)
 
     urls = [
         "/".join([baseurl, date_url, f"{product}{str(date.year)[-2:]}{gregorian_day}{UTC_COMBS[idx]}vl.001.h5"])
