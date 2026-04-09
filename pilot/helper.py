@@ -1,6 +1,19 @@
 import datetime as dt
 import bisect, os, re, requests
 from pathlib import Path
+import torch
+from  torch.utils.data import Dataset
+import numpy as np
+
+# Add after imports
+from typing import Any  # Helps inference
+
+
+# Lazy load heavy modules (Pylance skips deep analysis)
+def _load_pysteps():
+    from pysteps import rcparams, io
+    return rcparams, io
+rcparams, io = _load_pysteps()
 
 def parse_gregorian_day(date):
     gregorian_day = (date.toordinal() - dt.date(date.year,1,1).toordinal())+1
@@ -39,6 +52,7 @@ def is_timepoint(dt_obj):
 UTC_COMBS = [f"{x:02d}{y:02d}" for x in range(24) for y in range(0, 60, 5)]
 
 def download_mch_hdf5(product: str, baseurl: str, date: dt.datetime, window: int, save_dir: str = "pilot/data/"):
+    
     if not isinstance(date, dt.datetime):
         raise TypeError("Input must be a datetime object")
 
@@ -75,3 +89,58 @@ def download_mch_hdf5(product: str, baseurl: str, date: dt.datetime, window: int
             print(f"Saved: {filename}")
         else:
             print(f"Download of {filename} failed: {response.status_code}")
+
+
+data_source = rcparams.data_sources["mch"]
+path_fmt = data_source['path_fmt']
+fn_pattern = 'rzc%y%j%H%Mvl.001'
+fn_ext = 'h5'
+importer_name = 'mch_hdf5'
+timestep = data_source["timestep"]
+
+importer_kwargs = rcparams.data_sources['mch']["importer_kwargs"]
+importer_kwargs.update({'product': 'rzc'})
+
+
+class rain_precipitation_mch(Dataset):
+    def __init__(self, root_dir, date, window_size=7, target_size=1, transform=None):
+        self.window_size = window_size
+        self.target_size = target_size
+        self.transform = transform
+        
+        fns = io.find_by_date(
+            date,
+            root_dir,
+            path_fmt,
+            fn_pattern,
+            fn_ext,
+            timestep,
+            num_next_files=window_size + target_size,
+        )
+        
+        
+        importer = io.get_method(importer_name, "importer")
+        all_data = io.read_timeseries(fns, importer, **importer_kwargs)
+        self.data = all_data[0]
+        self.timestamp = all_data[2]['timestamps']
+        metadata = all_data[2]
+        metadata.pop('timestamps')
+        self.metadata = metadata
+
+        if len(self.data) < self.window_size + self.target_size:
+            raise ValueError(f"Not enough data: {len(self.data)} < {self.window_size + self.target_size}")
+        
+
+    def __len__(self):
+        return len(self.data) - self.window_size - self.target_size + 1
+
+    def __getitem__(self, index):
+        x = self.data[index : index + self.window_size]
+        x = np.nan_to_num(x)
+        y = self.data[index + self.window_size : index + self.window_size + self.target_size]
+        y = np.nan_to_num(y)
+        return torch.from_numpy(x).float(), torch.from_numpy(y).float()
+    
+    @property
+    def timestamp(self):
+        return self.timestamp  
