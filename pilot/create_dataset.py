@@ -41,15 +41,14 @@ class rain_precipitation_mch(Dataset):
     def __getitem__(self, index):    
         x = self.data[index : index + self.window_size, :, :]
         x = np.nan_to_num(x)
-        x = torch.tensor(x)
-        x = x.unsqueeze(1)
+        x = torch.tensor(x, dtype=torch.float32).unsqueeze(0)
         x = F.interpolate(x, (64,64), mode='bilinear')
         
         y = self.data[index + self.window_size : index + self.window_size + self.target_size, :, :]
         y = np.nan_to_num(y)
-        y = torch.tensor(y)
-        y = y.unsqueeze(1)
+        y = torch.tensor(y, dtype=torch.float32).unsqueeze(0)
         y = F.interpolate(y, (64,64), mode='bilinear')
+
 
 
         return x, y
