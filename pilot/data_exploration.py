@@ -34,7 +34,7 @@ hdf5_files = [list(paths), list(times)]
 # data validation
 temp = np.lib.stride_tricks.sliding_window_view(hdf5_files[1], 2)
 #check if diff in timestamps is always 5min
-np.all(np.diff(temp) == dt.timedelta(seconds = 300)) 
+temp[(np.diff(temp) == dt.timedelta(seconds = 300))]
 
 importer_kwargs = rcparams.data_sources['mch']["importer_kwargs"]
 importer_kwargs.update({'product': 'rzc'})
@@ -46,8 +46,8 @@ R, _, metadata = io.read_timeseries(hdf5_files, importer= io.import_mch_hdf5, **
 R[:1,:,:].dtype
 isinstance(torch.tensor(R[:1,:,:]), torch.Tensor)
 import torch.nn.functional as F
-temp = np.nan_to_num(R[:1,:,:])
-R_tensor = torch.tensor(R[:1,:,:])
+temp = np.nan_to_num(R[:7,:,:])
+R_tensor = torch.tensor(temp)
 R_tensor = R_tensor.unsqueeze(1)
 R_tensor.shape
 F.interpolate(R_tensor, (64,64))
