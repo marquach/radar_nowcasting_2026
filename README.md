@@ -31,6 +31,8 @@
 │   ├── model/
 │   │   └── u_net.py              # 2D U-Net architecture
 │   └── data/                     # RZC radar HDF5 files (not tracked)
+└── tests/
+    └── test_model.py             # U-Net unit tests
 ```
 
 ## 🚀 Quick Start
@@ -50,9 +52,14 @@ for d in [date + dt.timedelta(days=x) for x in range(14)]:
     download_mch_hdf5('rzc', BASEURL, d, window=None)
 "
 
-# 3. Run Streamlit demo (requires a saved model checkpoint)
+# 3. Train the model (saves checkpoint to pilot/model/unet.pth)
+python -m pilot.proof_of_concepts
+
+# 4. Run Streamlit demo
 streamlit run app.py
 ```
+
+> **Note:** The model checkpoint (`unet.pth`) is not tracked in Git. You need to run the training script before launching the Streamlit app.
 
 ## 🧠 Approach
 
