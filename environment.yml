@@ -7,3 +7,9 @@ dependencies:
   - pysteps
   - matplotlib
   - numpy
+  - pytorch
+  - torchvision
+  - torchmetrics
+  - requests
+  - h5py
+  - streamlit
