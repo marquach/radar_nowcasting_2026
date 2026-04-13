@@ -7,7 +7,7 @@ from pysteps.utils import transformation
 import torch.nn.functional as F
 
 
-class rain_precipitation_mch(Dataset):
+class RainPrecipitationMCH(Dataset):
     def __init__(self, path, window_size=7, target_size=1, transform=None):
         self.window_size = window_size
         self.target_size = target_size

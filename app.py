@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import random
 
 from pilot.model.u_net import UNet
-from pilot.create_dataset import rain_precipitation_mch
+from pilot.create_dataset import RainPrecipitationMCH
 import pysteps.visualization as pyvis
 
 st.set_page_config(page_title="Precipitation Nowcasting", layout="wide")
@@ -24,7 +24,7 @@ def load_model(path):
 
 @st.cache_resource
 def load_dataset(data_path):
-    return rain_precipitation_mch(data_path, window_size=7, target_size=1)
+    return RainPrecipitationMCH(data_path, window_size=7, target_size=1)
 
 
 # --- Sidebar ---
