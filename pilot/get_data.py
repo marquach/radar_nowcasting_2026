@@ -67,19 +67,20 @@ def download_mch_hdf5(product: str, baseurl: str, date: dt.datetime, window: int
 
     for url in urls:
         filename = url.split("/")[-1]
-        response = requests.get(url)
-
-        if response.status_code == 403:
-            url      = re.sub(r"([1-9][0-9]*)vl\.", r"\1ul.", url)  # fixed escaped dot
-            response = requests.get(url)
-        
         path = save_path / filename
         
+        if path.exists():
+            print('Already exists')
+            continue
+        
+        for suffix in ["vl.", "ul.", "sl."]:
+            attempt = re.sub(r"vl\.", suffix, url)
+            response = requests.get(attempt)
+            if response.status_code != 403:
+                break
+        
         if response.status_code == 200:
-            if path.exists(): 
-                print('Already exists')
-                continue
-            (path).write_bytes(response.content)
+            path.write_bytes(response.content)
             print(f"Saved: {filename}")
         else:
             print(f"Download of {filename} failed: {response.status_code}")
